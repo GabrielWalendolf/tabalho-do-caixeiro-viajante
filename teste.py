@@ -1,18 +1,7 @@
-# Importando bibliotecas necessárias
-import random  # Para gerar valores aleatórios
-from deap import base, creator, tools, algorithms  # Biblioteca DEAP para algoritmos evolutivos
+import random
+from deap import base, creator, tools, algorithms
 
-"""
-# Definindo as cidades e suas distâncias (instância do problema)
-distances = [
-    [0, 2, 9, 10],
-    [1, 0, 6, 4],
-    [15, 7, 0, 8],
-    [6, 3, 12, 0],
-]  # Matriz de distâncias entre 4 cidades (exemplo simplificado)
-"""
-
-# Matriz de distâncias entre 21 cidades
+# Matriz de distâncias entre as 21 cidades
 distances = [
     [0, 19, 17, 34, 7, 20, 10, 17, 28, 15, 23, 29, 23, 29, 21, 20, 9, 16, 21, 13, 12],
     [19, 0, 10, 41, 26, 3, 27, 25, 15, 17, 17, 14, 18, 48, 17, 6, 21, 14, 17, 13, 31],
@@ -37,67 +26,61 @@ distances = [
     [12, 31, 29, 27, 10, 30, 4, 27, 35, 18, 27, 36, 26, 21, 33, 32, 10, 21, 25, 19, 0]
 ]
 
-num_cities = len(distances)  # Número total de cidades
+num_cities = len(distances)
 
-# Função para calcular a distância total de uma solução
 def evaluate(individual):
-    """
-    Calcula a distância total do caminho representado pelo cromossomo.
-    """
     total_distance = 0
     for i in range(len(individual) - 1):
         total_distance += distances[individual[i]][individual[i + 1]]
-    # Adiciona o retorno à cidade inicial
     total_distance += distances[individual[-1]][individual[0]]
     return total_distance,
 
-# Criando os tipos básicos para o algoritmo genético
-creator.create("FitnessMin", base.Fitness, weights=(-1.0,))  # Minimizando a distância
+creator.create("FitnessMin", base.Fitness, weights=(-1.0,))
 creator.create("Individual", list, fitness=creator.FitnessMin)
 
-toolbox = base.Toolbox()  # Caixa de ferramentas para operadores genéticos
-
-# Definindo como criar indivíduos (permutação de cidades)
+toolbox = base.Toolbox()
 toolbox.register("indices", random.sample, range(num_cities), num_cities)
 toolbox.register("individual", tools.initIterate, creator.Individual, toolbox.indices)
 toolbox.register("population", tools.initRepeat, list, toolbox.individual)
-
-# Registrando a função de avaliação
 toolbox.register("evaluate", evaluate)
+toolbox.register("mate", tools.cxPartialyMatched)
+toolbox.register("mutate", tools.mutShuffleIndexes, indpb=0.2)
+toolbox.register("select", tools.selTournament, tournsize=3)
 
-# Operadores genéticos: cruzamento, mutação e seleção
-toolbox.register("mate", tools.cxPartialyMatched)  # Crossover PMX
-toolbox.register("mutate", tools.mutShuffleIndexes, indpb=0.2)  # Mutação: troca de posições
-toolbox.register("select", tools.selTournament, tournsize=3)  # Seleção por torneio
-
-# Função principal para executar o algoritmo genético
-def main():
-    """
-    Configura e executa o algoritmo genético.
-    """
-    # Criação da população inicial
-    population = toolbox.population(n=40)  # População com 20 indivíduos
-
-    # Definindo parâmetros de execução
-    generations = 100  # Número de gerações
-    cxpb = 0.7  # Probabilidade de cruzamento
-    mutpb = 0.2  # Probabilidade de mutação
-
-    print("Inicializando Algoritmo Genético...")
-    # Rodando o algoritmo genético
+def run_experiment(population_size, generations, mutation_rate):
+    population = toolbox.population(n=population_size)
     result = algorithms.eaSimple(
         population,
         toolbox,
-        cxpb=cxpb,
-        mutpb=mutpb,
+        cxpb=0.7,
+        mutpb=mutation_rate,
         ngen=generations,
-        verbose=True,
+        verbose=False,
     )
-
-    # Melhor solução encontrada
     best_individual = tools.selBest(population, k=1)[0]
-    print(f"\nMelhor solução encontrada: {best_individual}")
-    print(f"Distância total: {evaluate(best_individual)[0]}")
+    return {
+        "pop": population_size,
+        "geração": generations,
+        "mutação": mutation_rate,
+        "rota": best_individual,
+        "resultado": evaluate(best_individual)[0],
+    }
 
-if __name__ == "__main__":
-    main()
+# Configurações de teste
+experiments = [
+    {"population_size": 20, "generations": 100, "mutation_rate": 0.2},
+    {"population_size": 30, "generations": 100, "mutation_rate": 0.2},
+    {"population_size": 20, "generations": 200, "mutation_rate": 0.2},
+    {"population_size": 20, "generations": 100, "mutation_rate": 0.3},
+]
+
+# Executando experimentos
+results = []
+for exp in experiments:
+    results.append(run_experiment(**exp))
+
+# Exibindo resultados
+print("\nResultados dos Experimentos:")
+print("Pop | Geração | Mutação | Rota | Resultado")
+for res in results:
+    print(f"{res['pop']} | {res['geração']} | {res['mutação']} | {res['rota']} | {res['resultado']}")
